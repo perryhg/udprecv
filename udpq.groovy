@@ -12,6 +12,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.socket.DatagramPacket;
+import io.netty.channel.FixedRecvByteBufAllocator;
 import io.netty.util.CharsetUtil;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -41,6 +42,9 @@ public class UDPQServer {
             b.group(group)
              .channel(NioDatagramChannel.class)
              .option(ChannelOption.SO_BROADCAST, true)
+             .option(ChannelOption.SO_RCVBUF, 8192)
+             .option(ChannelOption.SO_SNDBUF, 8192)
+             .option(ChannelOption.RCVBUF_ALLOCATOR, new FixedRecvByteBufAllocator(8192))
              .handler(new QuoteOfTheMomentServerHandler());
 
 			println "starting server at port: ${port}";
