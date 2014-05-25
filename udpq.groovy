@@ -27,7 +27,7 @@ import java.nio.file.StandardWatchEventKinds
 public class UDPQServer {
     public static ExecutorService threadPool = Executors.newFixedThreadPool(1);
 		
-    static String postUrl = "http://192.168.10.106/mb66/test.php";
+    static String postUrl = System.getProperty("url","http://localhost:81/mb66/post.php");
 
     private final int port;
 
@@ -56,12 +56,14 @@ public class UDPQServer {
     }
 
     public static void main(String[] args) throws Exception {
-        int port;
-        if (args.length > 0) {
-            port = Integer.parseInt(args[0]);
-        } else {
-            port = 8888;
-        }
+    	String strport = System.getProperty("port","8888")
+      int port = 8888;
+      try{
+      	port = Integer.parseInt(strport)
+      }catch(Exception e)
+      {
+      	println "invalid port specified"
+      }
 		final Thread mainThread = Thread.currentThread()
 		Runtime.getRuntime().addShutdownHook(
 			new Thread(){
@@ -131,42 +133,38 @@ class PosterTask implements Runnable{
 	
 	public void run(){
 		String rtn = sendPost('k', content)
-		Thread.sleep(200);
-      	//System.out.printf("%s ", new Date())
-        println "server rtn:${rtn}"
+		//println "server rtn:${rtn}"
+		try{
+			Thread.sleep(200);
+		}catch(Exception e){
+			println "task sleep interval interrupted!"
+		}
 	}
 	
-	public String sendPost(String k, String v)
+	public String sendPost(String k, String v){
+		return sendPostParams(getURL(), [k:v])
+	}
+	
+	public String sendPostParams(url, paramMap)
 	{
-		StringBuilder rbuf = new StringBuilder();
-		try {
-		    // Construct data
-		    //String data = URLEncoder.encode("key1", "UTF-8") + "=" + URLEncoder.encode("value1", "UTF-8");
-		    //data += "&" + URLEncoder.encode("key2", "UTF-8") + "=" + URLEncoder.encode("value2", "UTF-8");
-			StringBuilder buf = new StringBuilder();
-			buf.append("k=").append(URLEncoder.encode(v, "UTF-8"));
-
-		    // Send data
-		    URL url = new URL(UDPQServer.postUrl);
-		    URLConnection conn = url.openConnection();
-		    conn.setDoOutput(true);
-		    OutputStreamWriter wr = new OutputStreamWriter(conn.getOutputStream());
-		    wr.write(buf.toString());
-		    wr.flush();
-
-		    // Get the response
-		    BufferedReader rd = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-		    String line;
-		    while ((line = rd.readLine()) != null) {
-		        // Process line...
-		    	rbuf.append(line);
-		    }
-		    wr.close();
-		    rd.close();
-		} catch (Exception e) {
-			e.printStackTrace();
+		println "begin post"
+		def HttpURLConnection connection = url.openConnection()
+		connection.setDoOutput(true)
+		connection.outputStream.withWriter { Writer writer ->
+			paramMap.each{k, v->
+				//println "writing $k=$v%"
+				writer << "$k=$v&"
+			}
 		}
-		return rbuf.toString();
+		String response = connection.inputStream.withReader { Reader reader -> reader.text }
+		println "  posted data with return: ${response}" 
+		return response
+	}
+	
+	public URL getURL()
+	{
+		return UDPQServer.postUrl.toURL()
+		//return new URL(UDPQServer.postUrl);
 	}
 }
 
@@ -185,11 +183,11 @@ public class QuoteOfTheMomentServerHandler extends SimpleChannelInboundHandler<D
        
     }
 
-	public void printFilter(String msg)
-	{
-		def pmsg = "${msg}                  "
-		println pmsg[0..15]
-	}
+	  public void printFilter(String msg)
+	  {
+	  	def pmsg = "${msg}                  "
+	  	println pmsg[0..15]
+	  }
 
     @Override
     public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
